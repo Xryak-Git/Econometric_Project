@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
 import numbers as nums
+import statsmodels.api as sm
 
 FILE_PATH = 'file.txt'
 
@@ -85,7 +86,6 @@ class Normalizer:
             result_1, result_2 = True, True
 
             while result_1 is True or result_2 is True:
-
                 result_1 = self.delete_anomal(self.x_list, self.y_list)
                 result_2 = self.delete_anomal(self.y_list, self.x_list)
 
@@ -107,7 +107,7 @@ class Normalizer:
                 break
         return anything_deleted
 
-    @staticmethod   
+    @staticmethod
     def check_is_normal(normal_list: NormaList):
         if normal_list.skew < normal_list.skew_crit and normal_list.kurtosis < normal_list.kurtosis_crit:
             return True
@@ -138,16 +138,35 @@ class Pearson:
 
 
 class LinRegression:
-    def __init__(self, pandas_df):
-        pass
+    def __init__(self, df: DataFrame, target_col: str, certain_cols: list = None):
+        self.df = df
+        self.target_col = target_col
+        self.certain_cols = certain_cols
+
+        self.x = df.loc[:, df.columns != target_col]
+        self.y = df.loc[:, target_col]
+
+        if not (self.certain_cols is None):
+            if not (all(isinstance(i, str) for i in self.certain_cols)):
+                raise Exception(' Выбранные столбцы должны быть строкой\n')
+            self.x = df.loc[:, certain_cols]
+
+    def count_regression(self):
+        x = sm.add_constant(self.x)
+        model = sm.OLS(self.y, x)
+
+        results = model.fit()
+        print(results.params)
+        print()
+        print(results.summary())
+
+
 
 def is_all_ints(lst):
     return all(isinstance(i, nums.Number) for i in lst)
 
 
 def make_noraml_lists(pandas_df: DataFrame, column_name_1: str, column_name_2: str):
-
-
     column_1 = list(pandas_df[column_name_1])
     column_2 = list(pandas_df[column_name_2])
 
@@ -169,5 +188,7 @@ def make_noraml_lists(pandas_df: DataFrame, column_name_1: str, column_name_2: s
 
 df = pd.read_csv(FILE_PATH, sep=',')
 
-normal_x, normal_y = make_noraml_lists(df, 'score', 'gdp')
+# normal_x, normal_y = make_noraml_lists(df, 'score', 'gdp')
 
+my_regression = LinRegression(df, 'med_age', ['score', 'gdp'])
+my_regression.count_regression()
