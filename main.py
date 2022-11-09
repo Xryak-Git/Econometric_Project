@@ -137,15 +137,19 @@ class Pearson:
         return s
 
 
+class LinRegression:
+    def __init__(self, pandas_df):
+        pass
+
 def is_all_ints(lst):
     return all(isinstance(i, nums.Number) for i in lst)
 
 
-def make_noraml_lists(path_to_file: str, column_name_1: str, column_name_2: str):
-    df = pd.read_csv(f'{path_to_file}', sep=',')
+def make_noraml_lists(pandas_df: DataFrame, column_name_1: str, column_name_2: str):
 
-    column_1 = list(df[column_name_1])
-    column_2 = list(df[column_name_2])
+
+    column_1 = list(pandas_df[column_name_1])
+    column_2 = list(pandas_df[column_name_2])
 
     if len(column_1) != len(column_2):
         raise Exception("У колонок разная длинна")
@@ -163,8 +167,7 @@ def make_noraml_lists(path_to_file: str, column_name_1: str, column_name_2: str)
 # y = [790, 39, 140, -296, 872, -191, 50, 248, -591, 858, 344, -801, 788, 925, -439, -311, -786, 611, -423, 179, 1]
 
 
-normal_x, normal_y = make_noraml_lists(FILE_PATH, 'score', 'gdp')
+df = pd.read_csv(FILE_PATH, sep=',')
 
-if len(normal_x) != 0:
-    pearson = Pearson(normal_x, normal_y)
-    print(pearson)
+normal_x, normal_y = make_noraml_lists(df, 'score', 'gdp')
+
