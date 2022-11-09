@@ -80,17 +80,19 @@ class Normalizer:
         self.y_list = NormaList(y_list)
 
     def make_normal(self):
-        while not (self.check_is_normal(self.x_list) or self.check_is_normal(self.y_list)):
-            result_1 = self.delete_anomal(self.x_list, self.y_list)
-            result_2 = self.delete_anomal(self.y_list, self.x_list)
+        if not (self.check_is_normal(self.x_list) and self.check_is_normal(self.y_list)):
 
-            if result_1 is False and result_2 is False:
-                print("Распределение не нормально")
-                self.x_list, self.y_list = [], []
-                return
+            result_1, result_2 = True, True
 
-            self.x_list.recount()
-            self.y_list.recount()
+            while result_1 is True or result_2 is True:
+
+                result_1 = self.delete_anomal(self.x_list, self.y_list)
+                result_2 = self.delete_anomal(self.y_list, self.x_list)
+
+                self.x_list.recount()
+                self.y_list.recount()
+
+            print("\nВсе аномалии были удалены\n")
 
     @staticmethod
     def delete_anomal(normal_list_1: NormaList, normal_list_2: NormaList):
@@ -105,7 +107,7 @@ class Normalizer:
                 break
         return anything_deleted
 
-    @staticmethod
+    @staticmethod   
     def check_is_normal(normal_list: NormaList):
         if normal_list.skew < normal_list.skew_crit and normal_list.kurtosis < normal_list.kurtosis_crit:
             return True
@@ -116,7 +118,7 @@ class Normalizer:
         return self.x_list, self.y_list
 
 
-class Econometric:
+class Pearson:
     def __init__(self, x_list: NormaList, y_list: NormaList):
         self.x_list = x_list
         self.y_list = y_list
@@ -161,8 +163,8 @@ def make_noraml_lists(path_to_file: str, column_name_1: str, column_name_2: str)
 # y = [790, 39, 140, -296, 872, -191, 50, 248, -591, 858, 344, -801, 788, 925, -439, -311, -786, 611, -423, 179, 1]
 
 
-normal_x, normal_y = make_noraml_lists(FILE_PATH, 'Population_2015', 'Population_2022')
+normal_x, normal_y = make_noraml_lists(FILE_PATH, 'score', 'gdp')
 
 if len(normal_x) != 0:
-    pearson = Econometric(normal_x, normal_y)
+    pearson = Pearson(normal_x, normal_y)
     print(pearson)
