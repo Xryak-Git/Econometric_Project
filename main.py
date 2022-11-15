@@ -4,6 +4,9 @@ import pandas as pd
 from pandas.core.frame import DataFrame
 import numbers as nums
 import statsmodels.api as sm
+from statsmodels.base.model import GenericLikelihoodModel as GLM
+
+import os
 
 FILE_PATH = 'file.txt'
 
@@ -20,6 +23,26 @@ def count_skew_crit(n):
 def count_kurtosis_crit(n):
     ans = 5 * (24 * n * (n - 2) * (n - 3) / ((n + 1) ** 2 * (n + 3) * (n + 5))) ** 0.5
     return ans
+
+
+def is_all_ints(lst):
+    return all(isinstance(i, nums.Number) for i in lst)
+
+
+def make_noraml_lists(pandas_df: DataFrame, column_name_1: str, column_name_2: str):
+    column_1 = list(pandas_df[column_name_1])
+    column_2 = list(pandas_df[column_name_2])
+
+    if len(column_1) != len(column_2):
+        raise Exception("У колонок разная длинна")
+
+    if not (is_all_ints(column_1) and (is_all_ints(column_2))):
+        raise Exception("В колонках присутствует что-то помимо целых")
+
+    normal_data = Normalizer(column_1, column_2)
+    normal_data.make_normal()
+
+    return normal_data.get_normal_lists()
 
 
 class NormaList:
@@ -124,27 +147,30 @@ class Pearson:
         self.y_list = y_list
         self.pearson, self.pearson_pvalue = stats.pearsonr(x_list, y_list)
 
-    def check_zero_hypothesis(self):
-        print()
-        if self.pearson_pvalue >= 0.05:
-            print("Нулевая гипотеза не отвергается")
-        else:
-            print("Распределение не нормально")
+        self.result = None
 
-    def __str__(self):
-        s = f'Коэффициент корреляции Пирсона = {self.pearson} \nPvalue = {self.pearson_pvalue}'
-        self.check_zero_hypothesis()
-        return s
+    def check_zero_hypothesis(self):
+        if self.pearson_pvalue >= 0.05:
+            return "Нулевая гипотеза не отвергается"
+        else:
+            return "Распределение не нормально"
+
+    def total(self):
+        self.result += f"\n{self.check_zero_hypothesis()}\n"
+        self.result += f'Коэффициент корреляции Пирсона = {self.pearson} \nPvalue = {self.pearson_pvalue}'
 
 
 class LinRegression:
-    def __init__(self, df: DataFrame, target_col: str, certain_cols: list = None):
+    def __init__(self, df: DataFrame, target_col: str, certain_cols: list = None, method: str = "OLS"):
         self.df = df
         self.target_col = target_col
         self.certain_cols = certain_cols
+        self.method = method
 
         self.x = df.loc[:, df.columns != target_col]
         self.y = df.loc[:, target_col]
+
+        self.result = None
 
         if not (self.certain_cols is None):
             if not (all(isinstance(i, str) for i in self.certain_cols)):
@@ -153,42 +179,165 @@ class LinRegression:
 
     def count_regression(self):
         x = sm.add_constant(self.x)
-        model = sm.OLS(self.y, x)
+        model = sm.OLS(self.y, x).fit()
 
-        results = model.fit()
-        print(results.params)
-        print()
-        print(results.summary())
+        if self.method == "GLM":
+            model = self.Maximum_Like(self.y, x).fit()
+
+        elif self.method == "Logit":
+            model = sm.Logit(self.y, x).fit(disp=0)
+
+        elif self.method == "Probit":
+            probit_mod = sm.Probit(self.y, x)
+            probit_res = probit_mod.fit()
+            model = probit_res.get_margeff()
+
+        self.result = model.summary()
+        #print(model.summary())
+
+    class Maximum_Like(GLM):
+        def loglike(self, params):
+            exog = self.exog
+            endog = self.endog
+
+            q = 2 * endog - 1
+            return stats.norm.logcdf(q * np.dot(exog, params)).sum()
 
 
+class Inteface:
+    def __init__(self):
+        self.path = None
+        self.sep = ','
+        self.dataframe: DataFrame
 
-def is_all_ints(lst):
-    return all(isinstance(i, nums.Number) for i in lst)
+    def greeting(self):
+        path_to_file = r"C:\Users\igser\PycharmProjects\project_avito_parser\file.txt"
+        #input("Здравствуйте, введите путь к файлу: ")
+        sep = ''
+        #input("И разделитель(по умолчанию ','): ")
+        if sep != "":
+            self.sep = sep
 
+        while not os.path.exists(path_to_file):
+            path_to_file = input("Файл по введенному пути не существует, попробуйте еще: ")
 
-def make_noraml_lists(pandas_df: DataFrame, column_name_1: str, column_name_2: str):
-    column_1 = list(pandas_df[column_name_1])
-    column_2 = list(pandas_df[column_name_2])
+        self.path = path_to_file
 
-    if len(column_1) != len(column_2):
-        raise Exception("У колонок разная длинна")
+        self.dataframe = pd.read_csv(self.path, sep=self.sep)
 
-    if not (is_all_ints(column_1) and (is_all_ints(column_2))):
-        raise Exception("В колонках присутствует что-то помимо целых")
+    def main_menu(self):
 
-    normal_data = Normalizer(column_1, column_2)
-    normal_data.make_normal()
+        print("Вот содержимое файла:")
+        print(self.dataframe.head())
 
-    return normal_data.get_normal_lists()
+        ans = input("\nВыберите действие: 1) Перейти к расчетам   2) Вывести столбец:\n").strip()
 
+        if ans not in ["1", "2"]:
+            self.print_err()
+            self.main_menu()
+
+        if ans == "1":
+            self.calculation_variant()
+
+        else:
+            pass
+
+    def calculation_variant(self):
+        ans = input("\n1) Корреляция Пирсона   2) Многофакторная линейная регрессия 3) Назад:\n").strip()
+
+        if ans not in ["1", "2", "3"]:
+            self.print_err()
+            self.calculation_variant()
+
+        if ans == "3":
+            self.main_menu()
+
+        if ans == "1":
+            self.choose_column(variant=1)
+
+        if ans == "2":
+            self.choose_column(variant=2)
+
+    def choose_column(self, variant: int = 1):
+        columns = self.create_columns()
+        self.print_columns(columns)
+
+        ans_y = int(input("Введите столбец Y:\n"))
+        self.check_right_column_input(ans_y, columns, foo=self.choose_column)
+
+        columns[ans_y] += " - выбран как Y"
+
+        ans_x = None
+        if variant == 1:
+            ans_x = self.get_pearson_x_column_and_mark_it(columns)
+
+        if variant == 2:
+            ans_x = self.get_mlr_x_column_and_mark_them(columns, ans_y)
+
+    def get_pearson_x_column_and_mark_it(self, columns):
+        ans_x = int(input("Введите столбец X:\n"))
+        self.check_right_column_input(ans_x, columns, foo=self.get_pearson_x_column_and_mark_it)
+        columns[ans_x] += " - выбран как X"
+        return ans_x
+
+    def get_mlr_x_column_and_mark_them(self, columns, ans_y):
+        ans_x = input("\nВведите столбцы X через пробел (по умолчанию все кроме Y):\n")
+
+        if ans_x == "":
+            self.mark_all_x_columns(columns, ans_y)
+            ans_x = list(columns).remove(ans_y)
+            return ans_x
+        else:
+            self.check_right_column_input(ans_x, columns, foo=self.get_mlr_x_column_and_mark_them)
+
+            ans_x = list(map(int, ans_x))
+            self.mark_define_x_columns(columns, ans_x)
+            return ans_x
+
+    @staticmethod
+    def print_err():
+        print("Такого варианта нет!")
+
+    @staticmethod
+    def print_columns(columns):
+        print("Вот все возможныйе столбцы: ")
+        for key, value in columns.items():
+            print("{0}: {1}".format(key, value))
+
+    @staticmethod
+    def mark_all_x_columns(columns, y_column):
+        for key, value in columns.items():
+            if key != y_column:
+                columns[key] += " - выбран как X"
+
+    @staticmethod
+    def mark_define_x_columns(columns, x_columns):
+        for key, value in columns.items():
+            if key in x_columns:
+                columns[key] += " - выбран как X"
+
+    def check_right_column_input(self, ans, columns, foo, *args, **kwargs):
+        if (set(ans) & set(columns)) == set(ans):
+            self.print_err()
+            foo(*args, **kwargs)
+
+    def create_columns(self):
+        columns = {}
+        for i, col in enumerate(self.dataframe.columns):
+            columns[i + 1] = col
+        return columns
 
 # x = [-224, 600, -425, -293, 551, 836, 64, -990, -833, 409, 682, -105, -10, 412, 491, -449, -611, -64, -264, 293, 1000]
 # y = [790, 39, 140, -296, 872, -191, 50, 248, -591, 858, 344, -801, 788, 925, -439, -311, -786, 611, -423, 179, 1]
 
 
-df = pd.read_csv(FILE_PATH, sep=',')
+# df = pd.read_csv(FILE_PATH, sep=',')
 
 # normal_x, normal_y = make_noraml_lists(df, 'score', 'gdp')
 
-my_regression = LinRegression(df, 'med_age', ['score', 'gdp'])
-my_regression.count_regression()
+# my_regression = LinRegression(df, 'score', ['med_age', 'gdp', 'Population_2015'], method="GLM")
+# my_regression.count_regression()
+
+i = Inteface()
+i.greeting()
+i.main_menu()
