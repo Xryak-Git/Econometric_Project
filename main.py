@@ -263,7 +263,7 @@ class Inteface:
         self.print_columns(columns)
 
         ans_y = int(input("Введите столбец Y:\n"))
-        self.check_right_column_input(ans_y, columns, foo=self.choose_column)
+        self.check_right_column_input(ans_y, columns)
 
         columns[ans_y] += " - выбран как Y"
 
@@ -276,7 +276,7 @@ class Inteface:
 
     def get_pearson_x_column_and_mark_it(self, columns):
         ans_x = int(input("Введите столбец X:\n"))
-        self.check_right_column_input(ans_x, columns, foo=self.get_pearson_x_column_and_mark_it)
+        self.check_right_column_input(ans_x, columns)
         columns[ans_x] += " - выбран как X"
         return ans_x
 
@@ -288,7 +288,7 @@ class Inteface:
             ans_x = list(columns).remove(ans_y)
             return ans_x
         else:
-            self.check_right_column_input(ans_x, columns, foo=self.get_mlr_x_column_and_mark_them)
+            self.check_right_column_input(ans_x, columns)
 
             ans_x = list(map(int, ans_x))
             self.mark_define_x_columns(columns, ans_x)
@@ -316,10 +316,10 @@ class Inteface:
             if key in x_columns:
                 columns[key] += " - выбран как X"
 
-    def check_right_column_input(self, ans, columns, foo, *args, **kwargs):
+    def check_right_column_input(self, ans, columns):
         if (set(ans) & set(columns)) == set(ans):
             self.print_err()
-            foo(*args, **kwargs)
+            self.calculation_variant()
 
     def create_columns(self):
         columns = {}
