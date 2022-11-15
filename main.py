@@ -147,7 +147,7 @@ class Pearson:
         self.y_list = y_list
         self.pearson, self.pearson_pvalue = stats.pearsonr(x_list, y_list)
 
-        self.result = None
+        self.result = ''
 
     def check_zero_hypothesis(self):
         if self.pearson_pvalue >= 0.05:
@@ -242,6 +242,13 @@ class Inteface:
         else:
             pass
 
+    def print_column(self):
+        columns_dict = self.create_columns()
+        self.print_columns(columns_dict)
+
+        ans = input("\nВыберите колонку:\n")
+        self.check_right_column_input(columns_dict, ans)
+
     def calculation_variant(self):
         ans = input("\n1) Корреляция Пирсона   2) Многофакторная линейная регрессия 3) Назад:\n").strip()
 
@@ -249,38 +256,57 @@ class Inteface:
             self.print_err()
             self.calculation_variant()
 
+        if ans == "1":
+            self.choose_column(variant=1)
+        if ans == "2":
+            self.choose_column(variant=2)
         if ans == "3":
             self.main_menu()
 
-        if ans == "1":
-            self.choose_column(variant=1)
-
-        if ans == "2":
-            self.choose_column(variant=2)
-
     def choose_column(self, variant: int = 1):
-        columns = self.create_columns()
-        self.print_columns(columns)
+        columns_dict = self.create_columns()
+        raw_dict = columns_dict.copy()
+        self.print_columns(columns_dict)
 
         ans_y = int(input("Введите столбец Y:\n"))
-        self.check_right_column_input(ans_y, columns)
+        self.check_right_column_input(columns_dict, ans_y)
 
-        columns[ans_y] += " - выбран как Y"
+        columns_dict[ans_y] += " - выбран как Y"
 
-        ans_x = None
+        y_name = raw_dict[ans_y]
         if variant == 1:
-            ans_x = self.get_pearson_x_column_and_mark_it(columns)
+            ans_x = self.get_pearson_x_column_and_mark_it(columns_dict)
+            x_name = raw_dict[ans_x]
+            result = self.count_pearson(x_column=x_name, y_column=y_name)
+            print(result)
 
         if variant == 2:
-            ans_x = self.get_mlr_x_column_and_mark_them(columns, ans_y)
+            ans_x = self.get_lmr_x_column_and_mark_them(columns_dict, ans_y)
+            x_names = self.get_x_column_names(raw_dict, ans_x)
+            result = self.count_lmr(x_column=x_names, y_column=y_name)
+            print(result)
+
+        self.print_columns(columns_dict)
+        self.main_menu()
+
+    def count_pearson(self, x_column, y_column):
+        normal_x, normal_y = make_noraml_lists(self.dataframe, 'score', 'gdp')
+        pearson = Pearson(normal_x, normal_y)
+        pearson.total()
+        return pearson.result
+
+    def count_lmr(self, x_column, y_column, method="OLS"):
+        my_regression = LinRegression(self.dataframe, y_column, x_column, method=method)
+        my_regression.count_regression()
+        return my_regression.result
 
     def get_pearson_x_column_and_mark_it(self, columns):
         ans_x = int(input("Введите столбец X:\n"))
-        self.check_right_column_input(ans_x, columns)
+        self.check_right_column_input(columns, ans_x)
         columns[ans_x] += " - выбран как X"
         return ans_x
 
-    def get_mlr_x_column_and_mark_them(self, columns, ans_y):
+    def get_lmr_x_column_and_mark_them(self, columns, ans_y):
         ans_x = input("\nВведите столбцы X через пробел (по умолчанию все кроме Y):\n")
 
         if ans_x == "":
@@ -288,11 +314,20 @@ class Inteface:
             ans_x = list(columns).remove(ans_y)
             return ans_x
         else:
-            self.check_right_column_input(ans_x, columns)
+            self.check_right_column_input(columns, ans_x)
 
-            ans_x = list(map(int, ans_x))
+            ans_x = list(map(int, ans_x.split()))
             self.mark_define_x_columns(columns, ans_x)
             return ans_x
+
+    @staticmethod
+    def get_x_column_names(columns, x_columns):
+        x_names = []
+        for key, value in columns.items():
+            if key in x_columns:
+                x_names.append(value)
+        return x_names
+
 
     @staticmethod
     def print_err():
@@ -300,9 +335,11 @@ class Inteface:
 
     @staticmethod
     def print_columns(columns):
+        print("-"*20)
         print("Вот все возможныйе столбцы: ")
         for key, value in columns.items():
             print("{0}: {1}".format(key, value))
+        print("-" * 20)
 
     @staticmethod
     def mark_all_x_columns(columns, y_column):
@@ -316,8 +353,14 @@ class Inteface:
             if key in x_columns:
                 columns[key] += " - выбран как X"
 
-    def check_right_column_input(self, ans, columns):
-        if (set(ans) & set(columns)) == set(ans):
+    def check_right_column_input(self, columns, ans):
+        a_set = set(columns)
+        if type(ans) is str:
+            b_set = set(map(int, ans.split()))
+        else:
+            b_set = {ans}
+
+        if (a_set & b_set) != b_set:
             self.print_err()
             self.calculation_variant()
 
@@ -334,8 +377,8 @@ class Inteface:
 # df = pd.read_csv(FILE_PATH, sep=',')
 
 # normal_x, normal_y = make_noraml_lists(df, 'score', 'gdp')
-
-# my_regression = LinRegression(df, 'score', ['med_age', 'gdp', 'Population_2015'], method="GLM")
+#
+# my_regression = LinRegression(df, 'score', ['med_age', 'gdp', 'Population_2015'])
 # my_regression.count_regression()
 
 i = Inteface()
