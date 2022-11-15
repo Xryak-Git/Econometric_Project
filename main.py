@@ -240,14 +240,35 @@ class Inteface:
             self.calculation_variant()
 
         else:
-            pass
+            self.print_column_menu()
 
-    def print_column(self):
+    def print_column_menu(self):
         columns_dict = self.create_columns()
         self.print_columns(columns_dict)
 
-        ans = input("\nВыберите колонку:\n")
-        self.check_right_column_input(columns_dict, ans)
+        ans_1 = int(input("\nВыберите колонку:\n"))
+        self.check_right_column_input(columns_dict, ans_1, foo="print_column")
+
+        column_name = columns_dict[ans_1]
+        df = self.dataframe[column_name]
+        df_sorted = df.sort_values().reset_index(drop=True)
+        df_reverce = df_sorted[::-1]
+
+        ans_2 = input("\n1) Вывести по убыванию   2) Вывести по возрастанию    3) Начальный вид    4) Назад :\n")
+        if ans_2 not in ["1", "2", "3", "4"]:
+            self.print_err()
+            self.print_column_menu()
+
+        if ans_2 == "4":
+            self.main_menu()
+        else:
+            if ans_2 == "3":
+                print(df)
+            if ans_2 == "2":
+                print(df_reverce)
+            if ans_2 == "1":
+                print(df_sorted)
+            self.print_column_menu()
 
     def calculation_variant(self):
         ans = input("\n1) Корреляция Пирсона   2) Многофакторная линейная регрессия 3) Назад:\n").strip()
@@ -283,7 +304,13 @@ class Inteface:
         if variant == 2:
             ans_x = self.get_lmr_x_column_and_mark_them(columns_dict, ans_y)
             x_names = self.get_x_column_names(raw_dict, ans_x)
-            result = self.count_lmr(x_column=x_names, y_column=y_name)
+
+            method = input("\nВыберете метод: OLS GLM Probit или Logit (по умолчанию OLS):\n")
+            if method == '':
+                method = 'OLS'
+            elif method not in ['OLS', 'GLM', 'Probit', 'Logit']:
+                print('Такого метода нет, выбран по умолчанию')
+            result = self.count_lmr(x_column=x_names, y_column=y_name, method=method)
             print(result)
 
         self.print_columns(columns_dict)
@@ -353,16 +380,21 @@ class Inteface:
             if key in x_columns:
                 columns[key] += " - выбран как X"
 
-    def check_right_column_input(self, columns, ans):
+    def check_right_column_input(self, columns, ans, foo="calculation_variant"):
         a_set = set(columns)
         if type(ans) is str:
             b_set = set(map(int, ans.split()))
         else:
             b_set = {ans}
 
-        if (a_set & b_set) != b_set:
-            self.print_err()
+        if (a_set & b_set) == b_set:
+            return
+        self.print_err()
+
+        if foo == 'calculation_variant':
             self.calculation_variant()
+        else:
+            self.print_column()
 
     def create_columns(self):
         columns = {}
